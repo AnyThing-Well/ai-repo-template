@@ -23,12 +23,17 @@ applyTo: '**/*.cs'
 
 ## 性能与设计优化 (Optimizations)
 
+- **异步优先**: 始终优先使用异步 API 处理 I/O、数据访问及长耗时操作。禁止在异步上下文中调用 `.Wait()` 或 `.Result`，防止线程池饥饿。
+- **避免不必要的 Task.Run**: 不要在常规 ASP.NET Core 控制器或中间件中使用 `Task.Run` 来包装同步代码试图使其“异步”，除非是为了迁移大量繁重的 CPU 密集型任务。
+- **高效处理集合**: 对于大型集合，优先返回 `IAsyncEnumerable<T>` 或实现分页，避免一次性加载所有数据到内存。
 - **显式密封**: 默认将类声明为 `sealed`（除非设计为基类），以启用编译器去虚化优化。
 - **防错初始化**: 优先使用 `readonly` 字段及 `required init` 属性，确保对象在初始化后不可变且关键数据不缺失。
 - **数据容器**: 优先使用 `record` (或 `record struct`) 定义 DTO、值对象及纯数据模型。
 - **显式不可变性**: 对 `record` 或不可变 DTO 使用 `[ImmutableObject(true)]` 特性，为设计器和工具链提供明确的不可变意图提示。
 - **现代化防御编程**: 使用 `ArgumentNullException.ThrowIfNull(param)` 替代传统的空检查方案，提升代码简洁性与 JIT 优化友好度。
 - **集合表达式**: 优先使用 `[]` (Collection Expressions) 初始化集合，以获得潜在的类型推导性能提升。
+- **资源复用**: 对于 HTTP 调用，始终通过 `IHttpClientFactory` 获取实例，禁止直接 `new HttpClient()` 造成套接字耗尽。
+- **内存优化**: 在热点路径（Hot Code Paths）中尽量减少大对象分配；频繁使用的大型字节数组应使用 `ArrayPool<T>` 缓冲池。
 
 ## Formatting
 
@@ -74,6 +79,7 @@ applyTo: '**/*.cs'
 
 - **FluentValidation 统一验证**：注入单一的 `IValidatorProvider` 接口，通过 `await _validatorProvider.ValidateAsync(dto)` 动态执行验证。严禁在构造函数中注入多个 `IValidator<T>`。
 - 强调验证器 (`AbstractValidator<T>`) 应位于应用层，并随功能文件夹或模块部署。
+- **序列化规范**: 默认使用 `System.Text.Json`。它针对 UTF-8 进行了优化且支持异步读写，性能优于 `Newtonsoft.Json`。只有在旧系统集成且必须使用 `Newtonsoft.Json` 特性时才考虑切换。
 - 演示使用中间件的全局异常处理策略。
 - Show how to create consistent error responses across the API.
 - Explain problem details (RFC 7807) implementation for standardized error responses.
